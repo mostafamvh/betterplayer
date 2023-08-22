@@ -72,7 +72,7 @@ class BetterPlayerPlaylistController {
     if (_changingToNextVideo) {
       return;
     }
-    final int nextDataSourceId = _getNextDataSourceIndex();
+    final int nextDataSourceId = getNextDataSourceIndex();
     if (nextDataSourceId == -1) {
       return;
     }
@@ -90,7 +90,7 @@ class BetterPlayerPlaylistController {
   void _handleEvent(BetterPlayerEvent betterPlayerEvent) {
     if (betterPlayerEvent.betterPlayerEventType ==
         BetterPlayerEventType.finished) {
-      if (_getNextDataSourceIndex() != -1) {
+      if (getNextDataSourceIndex() != -1) {
         _betterPlayerController!.startNextVideoTimer();
       }
     }
@@ -115,7 +115,7 @@ class BetterPlayerPlaylistController {
   ///if loops is enabled then first element of [_betterPlayerDataSourceList] will
   ///be picked, otherwise -1 will be returned, indicating that player should
   ///stop changing videos.
-  int _getNextDataSourceIndex() {
+  int getNextDataSourceIndex() {
     final currentIndex = _currentDataSourceIndex;
     if (currentIndex + 1 < dataSourceLength) {
       return currentIndex + 1;
