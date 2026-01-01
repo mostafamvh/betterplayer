@@ -72,7 +72,7 @@ class BetterPlayerPlaylistController {
     if (_changingToNextVideo) {
       return;
     }
-    final int nextDataSourceId = _getNextDataSourceIndex();
+    final int nextDataSourceId = getNextDataSourceIndex();
     if (nextDataSourceId == -1) {
       return;
     }
@@ -90,7 +90,7 @@ class BetterPlayerPlaylistController {
   void _handleEvent(BetterPlayerEvent betterPlayerEvent) {
     if (betterPlayerEvent.betterPlayerEventType ==
         BetterPlayerEventType.finished) {
-      if (_getNextDataSourceIndex() != -1) {
+      if (getNextDataSourceIndex() != -1) {
         _betterPlayerController!.startNextVideoTimer();
       }
     }
@@ -103,7 +103,7 @@ class BetterPlayerPlaylistController {
         index >= 0 && index < _betterPlayerDataSourceList.length,
         "Index must be greater than 0 and less than size of data source "
         "list - 1");
-    if (index <= _dataSourceLength) {
+    if (index <= dataSourceLength) {
       _currentDataSourceIndex = index;
       _betterPlayerController!
           .setupDataSource(_betterPlayerDataSourceList[index]);
@@ -115,9 +115,9 @@ class BetterPlayerPlaylistController {
   ///if loops is enabled then first element of [_betterPlayerDataSourceList] will
   ///be picked, otherwise -1 will be returned, indicating that player should
   ///stop changing videos.
-  int _getNextDataSourceIndex() {
+  int getNextDataSourceIndex() {
     final currentIndex = _currentDataSourceIndex;
-    if (currentIndex + 1 < _dataSourceLength) {
+    if (currentIndex + 1 < dataSourceLength) {
       return currentIndex + 1;
     } else {
       if (betterPlayerPlaylistConfiguration.loopVideos) {
@@ -132,7 +132,7 @@ class BetterPlayerPlaylistController {
   int get currentDataSourceIndex => _currentDataSourceIndex;
 
   ///Get size of [_betterPlayerDataSourceList]
-  int get _dataSourceLength => _betterPlayerDataSourceList.length;
+  int get dataSourceLength => _betterPlayerDataSourceList.length;
 
   ///Get BetterPlayerController instance
   BetterPlayerController? get betterPlayerController => _betterPlayerController;

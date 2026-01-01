@@ -58,7 +58,6 @@ import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.drm.DrmSessionManagerProvider
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector.SelectionOverride
-import com.google.android.exoplayer2.trackselection.TrackSelectionOverrides
 import com.google.android.exoplayer2.upstream.DataSource
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.util.Util
@@ -403,32 +402,39 @@ internal class BetterPlayer(
             mediaItemBuilder.setCustomCacheKey(cacheKey)
         }
         val mediaItem = mediaItemBuilder.build()
-        var drmSessionManagerProvider: DrmSessionManagerProvider? = null
-        drmSessionManager?.let { drmSessionManager ->
-            drmSessionManagerProvider = DrmSessionManagerProvider { drmSessionManager }
-        }
+        val drmSessionManagerProvider: DrmSessionManagerProvider =
+            DrmSessionManagerProvider { drmSessionManager ?: DrmSessionManager.DRM_UNSUPPORTED }
+
         return when (type) {
-            C.TYPE_SS -> SsMediaSource.Factory(
-                DefaultSsChunkSource.Factory(mediaDataSourceFactory),
-                DefaultDataSource.Factory(context, mediaDataSourceFactory)
-            )
-                .setDrmSessionManagerProvider(drmSessionManagerProvider)
-                .createMediaSource(mediaItem)
-            C.TYPE_DASH -> DashMediaSource.Factory(
-                DefaultDashChunkSource.Factory(mediaDataSourceFactory),
-                DefaultDataSource.Factory(context, mediaDataSourceFactory)
-            )
-                .setDrmSessionManagerProvider(drmSessionManagerProvider)
-                .createMediaSource(mediaItem)
-            C.TYPE_HLS -> HlsMediaSource.Factory(mediaDataSourceFactory)
-                .setDrmSessionManagerProvider(drmSessionManagerProvider)
-                .createMediaSource(mediaItem)
-            C.TYPE_OTHER -> ProgressiveMediaSource.Factory(
-                mediaDataSourceFactory,
-                DefaultExtractorsFactory()
-            )
-                .setDrmSessionManagerProvider(drmSessionManagerProvider)
-                .createMediaSource(mediaItem)
+            C.TYPE_SS -> {
+                val factory = SsMediaSource.Factory(
+                    DefaultSsChunkSource.Factory(mediaDataSourceFactory),
+                    DefaultDataSource.Factory(context, mediaDataSourceFactory)
+                )
+                factory.setDrmSessionManagerProvider(drmSessionManagerProvider)
+                factory.createMediaSource(mediaItem)
+            }
+            C.TYPE_DASH -> {
+                val factory = DashMediaSource.Factory(
+                    DefaultDashChunkSource.Factory(mediaDataSourceFactory),
+                    DefaultDataSource.Factory(context, mediaDataSourceFactory)
+                )
+                factory.setDrmSessionManagerProvider(drmSessionManagerProvider)
+                factory.createMediaSource(mediaItem)
+            }
+            C.TYPE_HLS -> {
+                val factory = HlsMediaSource.Factory(mediaDataSourceFactory)
+                factory.setDrmSessionManagerProvider(drmSessionManagerProvider)
+                factory.createMediaSource(mediaItem)
+            }
+            C.TYPE_OTHER -> {
+                val factory = ProgressiveMediaSource.Factory(
+                    mediaDataSourceFactory,
+                    DefaultExtractorsFactory()
+                )
+                factory.setDrmSessionManagerProvider(drmSessionManagerProvider)
+                factory.createMediaSource(mediaItem)
+            }
             else -> {
                 throw IllegalStateException("Unsupported type: $type")
             }
@@ -503,20 +509,17 @@ internal class BetterPlayer(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun setAudioAttributes(exoPlayer: ExoPlayer?, mixWithOthers: Boolean) {
-        val audioComponent = exoPlayer?.audioComponent ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            audioComponent.setAudioAttributes(
-                AudioAttributes.Builder().setContentType(C.CONTENT_TYPE_MOVIE).build(),
-                !mixWithOthers
-            )
+        exoPlayer ?: return
+        val contentType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            C.AUDIO_CONTENT_TYPE_MOVIE
         } else {
-            audioComponent.setAudioAttributes(
-                AudioAttributes.Builder().setContentType(C.CONTENT_TYPE_MUSIC).build(),
-                !mixWithOthers
-            )
+            C.AUDIO_CONTENT_TYPE_MUSIC
         }
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(contentType)
+            .build()
+        exoPlayer.setAudioAttributes(audioAttributes, !mixWithOthers)
     }
 
     fun play() {
@@ -705,17 +708,10 @@ internal class BetterPlayer(
     private fun setAudioTrack(rendererIndex: Int, groupIndex: Int, groupElementIndex: Int) {
         val mappedTrackInfo = trackSelector.currentMappedTrackInfo
         if (mappedTrackInfo != null) {
+            val override = SelectionOverride(groupIndex, groupElementIndex)
             val builder = trackSelector.parameters.buildUpon()
                 .setRendererDisabled(rendererIndex, false)
-                .setTrackSelectionOverrides(
-                    TrackSelectionOverrides.Builder().addOverride(
-                        TrackSelectionOverrides.TrackSelectionOverride(
-                            mappedTrackInfo.getTrackGroups(
-                                rendererIndex
-                            ).get(groupIndex)
-                        )
-                    ).build()
-                )
+                .setSelectionOverride(rendererIndex, mappedTrackInfo.getTrackGroups(rendererIndex), override)
 
             trackSelector.setParameters(builder)
         }
